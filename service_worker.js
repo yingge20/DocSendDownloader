@@ -14,6 +14,24 @@ const executeJob = () => {
     jobInProgress = true;
     chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
         const currentTabId = tabs[0].id;
+        const currentTabUrl = tabs[0].url;
+
+        // SECURITY: Only allow execution on DocSend domains
+        const allowedDomains = ['docsend.com', 'docsend.dropbox.com'];
+        const isAllowedDomain = allowedDomains.some(domain => {
+            try {
+                const url = new URL(currentTabUrl);
+                return url.hostname.endsWith(domain);
+            } catch (e) {
+                return false;
+            }
+        });
+
+        if (!isAllowedDomain) {
+            console.error('DocSend Downloader: This extension only works on DocSend pages');
+            jobInProgress = false;
+            return;
+        }
 
         chrome.scripting
         .executeScript({

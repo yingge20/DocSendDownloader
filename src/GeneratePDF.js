@@ -3,22 +3,26 @@ let numSlidesComplete = 0;
 const doc = new PDFDocument({layout:'landscape', margin: 0, autoFirstPage: false});
 const stream = doc.pipe(blobStream());
 
-const getImageAsBlob = async (url) => 
-    await fetch(url)
-    .then((response) =>{
+const getImageAsBlob = async (url) => {
+    try {
+        const response = await fetch(url, {credentials: 'same-origin'});
+        if (!response.ok) {
+            throw new Error(`Image fetch failed: ${response.status} ${response.statusText}`);
+        }
         numSlidesComplete++;
         showCustomAlert(`Generating slide deck as PDF: ${numSlidesComplete}/${numSlides} slides complete...`);
-        return response.blob();
-    })
-    .then(blob => new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-    }))
-    .catch((e) => {
-        console.error("Error fetching slide deck images.")
-    })
+        const blob = await response.blob();
+        return await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+    } catch (e) {
+        console.error('Error fetching slide deck image', url, e);
+        throw e; // rethrow so caller knows this slide failed
+    }
+}
 
 const addSlidesToPDF = async (imageUrls) =>{
     for (let i=0; i<imageUrls.length; i++) {
